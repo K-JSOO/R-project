@@ -1,0 +1,160 @@
+---
+title: "**독버섯 분류**"
+author: "김지수"
+date: '2019. 9. 9 '
+output: html_document
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, results = "hide")
+Sys.setlocale("LC_COLLATE", "ko_KR.UTF-8")
+library(adabag)
+library(caret)
+library(ROCR)
+library(gmodels)
+library(C50)
+library(e1071)
+library(RColorBrewer)
+```
+
+## **1. 주제** 
+독버섯과 식용버섯을 구별하는 모델을 생성합니다.
+
+## **2. 데이터 소개**
+독이 있는 버섯과 먹을 수 있는 버섯의 정보가 들어간 데이터입니다.
+라벨 변수는 type입니다.
+
+```{r analysis0, results="markup"}
+setwd("c:\\data")
+mushrooms <- read.csv("c:\\data\\mushrooms.csv")
+str(mushrooms)
+```
+
+## **2. 데이터 탐색** 
+독버섯과 식용버섯의 비율은 약 4.8 대 5.2입니다.
+
+```{r analysis1, results="markup"}
+prop.table( table(mushrooms$type) )
+x<-c(nrow(mushrooms[mushrooms$type=='p',]),
+     nrow(mushrooms[mushrooms$type=='e',]))
+lana<-unique(mushrooms$type)
+pie(x,col=c('pink','skyblue'),density=80, main="poisonous/edible",label=lana )
+```
+
+각각의 버섯들의 특징에 따른 그래프입니다.
+```{r analysis2, results="markup"}
+brew_colors <- brewer.pal(n = 12, name = "Set3")
+
+plot(mushrooms$cap_shape, col=brew_colors, main='cap_shape',ylim=c(0,4000),density=70)
+plot(mushrooms$cap_surface, col=brew_colors, main='cap_surface',ylim=c(0,4000),density=70)
+plot(mushrooms$cap_color, col=brew_colors, main='cap_color',ylim=c(0,2500),density=70)
+plot(mushrooms$bruises, col=brew_colors, main='bruises',ylim=c(0,5000),density=70)
+plot(mushrooms$odor, col=brew_colors, main='odor',ylim=c(0,4000),density=70)
+plot(mushrooms$gill_attachment, col=brew_colors, main='gill_attachment',ylim=c(0,10000),density=70)
+plot(mushrooms$gill_spacing, col=brew_colors, main='gill_spacing',ylim=c(0,7000),density=70)
+plot(mushrooms$gill_size, col=brew_colors, main='gill_size',ylim=c(0,6000),density=70)
+plot(mushrooms$gill_color, col=brew_colors, main='gill_color',ylim=c(0,2000),density=70)
+plot(mushrooms$stalk_shape, col=brew_colors, main='stalk_shape',ylim=c(0,5000),density=70)
+plot(mushrooms$stalk_root, col=brew_colors, main='stalk_root',ylim=c(0,4000),density=70)
+plot(mushrooms$stalk_surface_above_ring, col=brew_colors, main='stalk_surface_above_ring',ylim=c(0,6000),density=70)
+plot(mushrooms$stalk_surface_below_ring, col=brew_colors, main='stalk_surface_below_ring',ylim=c(0,6000),density=70)
+plot(mushrooms$stalk_color_above_ring, col=brew_colors, main='stalk_color_above_ring',ylim=c(0,5000),density=70)
+plot(mushrooms$stalk_color_below_ring, col=brew_colors, main='stalk_color_below_ring',ylim=c(0,5000),density=70)
+plot(mushrooms$veil_color, col=brew_colors, main='veil_color',ylim=c(0,10000),density=70)
+plot(mushrooms$ring_number, col=brew_colors, main='ring_number',ylim=c(0,9000),density=70)
+plot(mushrooms$ring_type, col=brew_colors, main='ring_type',ylim=c(0,5000),density=70)
+plot(mushrooms$spore_print_color, col=brew_colors, main='spore_print_color',ylim=c(0,3000),density=70)
+plot(mushrooms$population, col=brew_colors, main='population',ylim=c(0,5000),density=70)
+plot(mushrooms$habitat, col=brew_colors, main='habitat',ylim=c(0,4000),density=70)
+```
+
+## **3. 데이터로 모델 훈련**
+mushrooms의 데이터를 7.5:2.5으로 train data와 test data로 분류합니다.
+
+```{r analysis3, results="markup"}
+set.seed(0)
+mushrooms_shuffle <- mushrooms[ sample( nrow(mushrooms) ),  ]
+train_num<-round(0.75 * nrow(mushrooms_shuffle), 0) 
+mushrooms_train<-mushrooms_shuffle[1:train_num ,  ]
+mushrooms_test<-mushrooms_shuffle[(train_num+1) : nrow(mushrooms_shuffle),  ]
+
+str(mushrooms_train)
+
+head(mushrooms_train,10)
+
+mushrooms_model<-naiveBayes(mushrooms_train[-1],mushrooms_train$type)
+head(mushrooms_model,10)
+
+mushrooms_pred <-predict(mushrooms_model,mushrooms_test)
+head(mushrooms_pred,10)
+```
+
+## **4. 모델 성능 평가**
+```{r analysis4, results="markup"}
+CrossTable(mushrooms_test[   , 1],mushrooms_pred )
+```
+
+독버섯을 예측하는 모델의 정확도가 94.5%가 나왔습니다.
+하지만 식용버섯이라고 예측했는데 독버섯일 경우가 있어서 정확도를 
+높여야 합니다
+
+## **5. Roc 커브** 
+
+예측 데이터 프레임을 생성합니다. 
+
+```{r}
+mushrooms_test_prob <- predict(mushrooms_model,mushrooms_test,type="raw")
+head(mushrooms_test_prob,30)
+
+mushrooms_results <- data.frame(actual_type=mushrooms_test[  , 1],
+                                predict_type=mushrooms_pred,
+                                prob_edible=round(mushrooms_test_prob[ ,1], 5),
+                                prob_poisonous=round(mushrooms_test_prob[ ,2], 5) )
+head(mushrooms_results,30)
+```
+
+예측 데이터 프레임을 csv 로 저장합니다.
+```{r}
+write.csv(mushrooms_results, "c:\\data\\mushrooms_results2.csv", row.names = FALSE)
+```
+
+ROC 커브를 그립니다. 
+```{r echo=FALSE, eval=TRUE}
+mushrooms_results2 <- read.csv("c:\\data\\mushrooms_results2.csv")
+pred <- prediction(predictions = mushrooms_results2$prob_poisonous,                
+                   labels = mushrooms_results2$actual_type)
+perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+plot(perf, main = "ROC curve for mushrooms poisonous filter", col = "blue", lwd = 2)
+abline(a = 0, b = 1, lwd = 2, lty = 2)
+```
+
+AUC 값을 출력합니다.
+```{r analysis5, results="markup"}
+perf.auc <- performance(pred, measure = "auc")
+unlist(perf.auc@y.values)
+```
+
+```{r analysis6, results="markup"}
+mushrooms_results <- read.csv("c:\\data\\mushrooms_results2.csv")
+a <- confusionMatrix(mushrooms_results$predict_type, mushrooms_results$actual_type, positive="p")
+cat('민감도 : ', a$byClass[1], '\n',
+    '특이도 : ', a$byClass[2], '\n',
+    '정밀도 : ', a$byClass[3], '\n',
+    '재현율 : ', a$byClass[1], '\n',
+    '카파통계량 :', a$overall[2]) 
+```
+카파 통계량은 약 0.89로 매우 좋은 일치를 나타내지만 정확도를 높이기 
+위해 모델의 성능을 조금 더 개선하겠습니다.
+
+## **6. 모델 성능 개선 **
+```{r analysis7, results="markup"}
+mushrooms_model<-naiveBayes(mushrooms_train[-1],mushrooms_train$type,
+                            laplace=0.004)
+mushrooms_pred <-predict(mushrooms_model,mushrooms_test)
+CrossTable(mushrooms_test[   , 1],mushrooms_pred )
+```
+
+## **7. 결론 **
+처음에 독버섯을 예측하는 모델의 정확도는 94.5% 였습니다. 또한 민감도는 약 0.896, 
+특이도는 0.994, 정밀도는 0.993, 재현율은 0.894, 카파통계량은 0.890으로 나왔습니다. 
+모델 성능을 개선하여 정확도를 94.5%에서 99.5%로 올렸습니다. 

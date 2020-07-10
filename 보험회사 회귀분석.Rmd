@@ -1,0 +1,278 @@
+---
+title: "**보험회사 보험료 산정**"
+author: "김지수"
+date: '2019. 9. 16 '
+output: 
+  html_document: 
+  theme: simplex
+toc: yes
+umber_sections: yes
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, results = "hide")
+Sys.setlocale("LC_COLLATE", "ko_KR.UTF-8")
+library(psych)
+```
+
+## **1. 주제** 
+보험회사의 보험료 산정에 영향을 주는 요소를 확인합니다.
+
+
+## **2. 데이터 소개**
+보험회사의 보험료 산정 데이터입니다.
+
+```{r analysis0}
+ins<-read.csv('c:\\data\\insurance.csv',header=T)
+str(ins)
+summary(ins)
+```
+
+## **2. 데이터 탐색** 
+각 컬럼의 비율입니다.
+
+- age 히스토그램
+주 수익자의 연령입니다.
+```{r analysis1}
+ageso<-sort(ins$age)
+hist(ins$age,ylim=c(0,150),col='pink', breaks=seq(15,65,by=2),
+     main='age rate')
+par(new=T)
+plot(ageso,dnorm(ageso,mean=mean(ageso),sd=sd(ageso)),type='l',
+     axes=FALSE,ann=FALSE,col='blue')
+```
+
+
+- sex 비율
+보험계약자의 성별입니다.
+```{r analysis2}
+cntsex<-c(nrow(ins[ins$sex=='male',]),nrow(ins[ins$sex=='female',]))
+x<-round(cntsex/sum(cntsex)*100,2)
+x2<-c('male','female')
+x3<-paste(x2,x,'%')
+pie(cntsex,col=c('pink','skyblue'),labels=x3,density=80, 
+    main='male&female rate')
+```
+
+남녀의 비율은 비슷합니다.
+
+
+- bmi 히스토그램
+신체 용적지수로  키에 비해 상대적으로 초과되거나 미달되는 몸무게에 대한 이해를 도와줍니다. BMI는 몸무게를 키의 제곱으로 나누 수입니다. 정상범위는 보통 18.5~24.9 사이라고 합니다.  
+```{r analysis3}
+bmiso<-sort(ins$bmi)
+hist(ins$bmi,ylim=c(0,300),col='pink', breaks=seq(15,54,by=3), 
+     main='bmi histogram')
+par(new=T)
+plot(bmiso,dnorm(bmiso,mean=mean(bmiso),sd=sd(bmiso)),type='l',
+     axes=FALSE,ann=FALSE,col='blue')
+```
+
+
+- childrend 수
+의료보험이 적용되는 자녀의 수입니다.
+```{r analysis4}
+cntch=c()
+for (i in 0:5) {
+  cntch<-append(cntch,nrow(ins[ins$children==i,])) }
+cntchco<-c('0명','1명','2명','3명','4명','5명')
+barplot(cntch,col='pink',ylim=c(0,600),names.arg=cntchco,
+        main='childrend count')
+```
+
+자녀가 0명인 경우가 가장 많았습니다.
+
+
+- smoker 비율
+피보험자의 정기적인 흡연 여부입니다.
+```{r analysis5}
+cntsm<-c(nrow(ins[ins$smoker=='yes',]),nrow(ins[ins$smoker=='no',]))
+a<-round(cntsm/sum(cntsm)*100,2)
+a2<-c('yes','no')
+a3<-paste(a2,a,'%')
+pie(cntsm,col=c('pink','skyblue'),labels=a3,density=80, 
+    main='smoker rate')
+```
+
+흡연을 하는 사람보다는 흡연을 하지않는 사람이 더 많습니다.
+
+
+- region 비율
+미국내 수익자의 거주 지역을 북동, 남동, 남서, 북서 네개의 지역으로 나눈것입니다.
+```{r analysis6}
+cntre<-c(nrow(ins[ins$region=='northeast',]),
+         nrow(ins[ins$region=='northwest',]),
+         nrow(ins[ins$region=='southeast',]),
+         nrow(ins[ins$region=='southwest',]))
+cntreco<-c('northeast','northwest','southeast','southwest')
+barplot(cntre,col='pink',ylim=c(0,400),names.arg=cntreco,
+        main='region count')
+```
+
+데이터가 네개의 지역에 균등히 나눠져 있는 것을 확인할 수 있습니다.
+
+
+- expenses 데이터의 히스토그램 그래프
+그해에 의료보험에 청구된 개인별 의료비를 측정한 값입니다.
+```{r analysis7, results="markup"}
+inex<-sort(ins$expenses)
+lo2<-sort(log2(ins$expenses))
+lo10<-sort(log10(ins$expenses))
+sq<-sort(sqrt(ins$expenses))
+par(mfrow=c(2,2))
+par(mar=c(2,2,2,2))
+hist(inex,ylim=c(0,300),col='pink', 
+     breaks=seq(1000,64000,by=3000),main='expenses histogram')
+par(new=T)
+plot(inex,dnorm(inex,mean=mean(inex),sd=sd(inex)),type='l',
+     axes=FALSE,ann=FALSE,col='blue')
+
+hist(lo2,ylim=c(0,300),col='pink',main='log2(expenses) histogram')
+par(new=T)
+plot(lo2,dnorm(lo2,mean=mean(lo2),sd=sd(lo2)),type='l',
+     axes=FALSE,ann=FALSE,col='blue')
+
+hist(lo10,ylim=c(0,300),col='pink',main='log10(expenses) histogram')
+par(new=T)
+plot(lo10,dnorm(lo10,mean=mean(lo10),sd=sd(lo10)),type='l',
+     axes=FALSE,ann=FALSE,col='blue')
+
+hist(sq,ylim=c(0,300),col='pink',main='sqrt(expenses) histogram')
+par(new=T)
+plot(sq,dnorm(sq,mean=mean(sq),sd=sd(sq)),type='l',
+     axes=FALSE,ann=FALSE,col='blue')
+```
+
+expenses를 정규화 하지 않고 히스토그램을 그리면 평균값이 중앙값보다 큰 오른쪽으로 꼬리가 긴 분포로 그려집니다. 그래서 log2, log10, sqrt로 정규화변환을 해 본 결과 log2가 가장 정규분포에 가까운 그래프가 되었습니다.
+
+
+
+데이터에 결측치나 이상치가 있는지 확인합니다.
+
+- 결측치
+```{r analysis8, results="markup"}
+coln<-colnames(ins)
+ina=c()
+for ( i in coln ) { 
+  ina<-table(append(ina,sum(is.na(ins$i))))  }
+print(ina)
+```
+
+결측치는 따로 없습니다.
+
+
+- 이상치
+```{r analysis9, results="markup"}
+summary(ins)
+par(mfrow=c(2,2))
+par(mar=c(2,2,2,2))
+boxplot(ins$age,col='pink',main='age')
+boxplot(ins$bmi,col='pink',main='bmi')
+boxplot(ins$children,col='pink',main='children')
+boxplot(ins$expenses,col='pink',main='expenses')
+```
+
+expenses는 비용이다 보니 이상치가 나왔습니다. 실제로 위에 보신 expenses의 정규분포 그래프는
+오른쪽으로 꼬리가 긴모양이였습니다. 
+
+## **3. 상관관계**
+회귀모델을 데이터에 적합시키기 전에 독립변수가 종속변수와의 관계가어떻게 되는지 알아보기 위해 상관관계를 확인합니다.
+
+- 상관관계
+```{r}
+cor(ins[c('age','bmi','children','expenses')])
+```
+
+위의 결과를 보면 어떠한 상관관계도 강하지 않은 것으로 볼 수 있지만 일부 
+눈에 띄는 연관성이 있습니다. 예를 들어 age와 bmi는 약한 양의 상관관계가 있어서 나이가 들수록 bmi가 늘어나는 것으로 볼 수 있습니다. age와 expenses, bmi와 expenses, children과 expenses가 보통 양의 상관관계를 갖고 있습니다. 
+이 연관성은 나이, 몸무게, 자녀의 수가 증가 할 때마다 보험료가 올라간다는 것을 의미합니다.
+
+
+- 독립변수들간의 상관관계도
+```{r}
+pairs.panels(ins[c('age','bmi','children','expenses')])
+```
+
+산포도에 있는 달걀 모양의 객체는 상관관계 타원형으로 관계를 시각화합니다. 타원이 늘어질수록 상관관계는 강해집니다.산포도에 그려진 곡선은 뢰스곡선이라도 하는데 x축과 y축 변수사이의 일반적인 관계를 나타냅니다. 
+
+
+## **4. 회귀분석**
+회귀함수인 lm 을 이용해서 독립변수들의 회귀모수, 기울기를 확인합니다.
+
+```{r analysis10, results="markup"}
+m5 <- lm(expenses~age+children+bmi+smoker+region, data=ins)
+m5
+```
+
+회귀분석 결과 나이(age)가 일년씩 더해질때마다 평균적으로 의료비가 256.8 달러 증가될 것으로 예상합니다. 자녀는 한명 추가 될때마다 
+매해 의료비가 평균적으로 475.7 달러 추가될 것으로 예상합니다. BMI 단위가 증가할 때마다 연간 의료비가 평균339.30 달러 증가 될 것이라고
+예상합니다. 또한 더 정확한 분석을 위해 더미변수를 자동으로 추가해 변수의 값에 상대적 추정을 하고 있습니다. sexmale은 남성이 여성에 
+비해 매년 의료비가 131.4 달러 적게 사용될 것이라고 예상하고 있습니다 smokeryes은 흡연자가 비흡연자보다 매년 평균 23847.50 달러의 
+비용이 더 든다고 예상합니다. northwest는 northeast 보다 의료비가 325.8 달러 적게 사용되었고 southeast는 northeast 보다 1035.6 달러 
+적게 의료비가 사용되었고southwest는 northeast보다 959.3 달러 적게 의료비가 사용되었습니다.
+
+
+## **5. 모델분석 **
+```{r analysis11, results="markup"}
+model2<-lm(expenses ~ .,  data= ins)
+summary(model2)
+```
+- medle2 시각화
+```
+par(mfrow=c(2,2))
+par(mar=c(2,2,2,2))
+plot(model2,col='pink')
+```
+잔차부분은 예측에서 오차에 대한 요약 통계를 제공합니다. 모델이 최소 하나의 관측에 대해서는 
+거의 3만 달러정도 비용을 낮게 예측했습니다. 오차의 50%는 2850~1383 달러 사이에 있습니다.
+
+추정된 회귀 계수별로 표시된 P값은 추정된 계수가 실제 0일 확률의 추정치입니다. P값이 작은 경우 
+실제계수가 0이 아닐 가능성이 높다는 것을 말하며 특징이 종속변수와 관계가 없을 가능성이 
+아주 낮다는 것을 의미합니다 즉, 유의수준보다 낮은 P값은 통계적으로 유의한 것으로 간주됩니다. 
+P값이 0.05미만으로 나온 독립변수가 의미가 있는 변수들입니다.일부 P값에는 별표모양이 있는데
+추정치로 충족되는 유의수준을 나타내는 각주에 해당됩니다. 유의수준보다 낮은 P값은 통계적으로
+유의한 것으로 간주됩니다.
+
+결정계수는 추정된 회귀선이 실제값고 평균사이의 편차를 얼마나 줄여주는가를 나타내는 지수입니다.
+Multiple R-squared : 0.7509, Adjusted R-squared : 0.7494 일때 독립변수는 종속변수를 약 75% 
+설명하고 있습니다. 둘의 차이가 크면 불필요한 변수가 있을 것이다라고 예상 할 수 있습니다.
+
+
+
+## **6. 모델 성능 개선 **
+파생변수를 생성해서 독립변수에 추가해서 성능을 개선했습니다.
+
+
+- 첫번째 파생변수 : 나이에 대한 비선형 변수
+```
+ins$age2<-ins$age^2
+summary(ins$age)
+```
+
+- 두번째 파생변수 : 비만에 대한 지시 변수
+```
+ins$bmi30<-ifelse(ins$bmi>=30,1,0)
+summary(ins$bmi30)
+```
+
+- 세번째 파생변수 : 비만과 흡연 간의 상호작용 변수
+```
+model3<-lm(expenses~age+age2+children+bmi+sex+bmi30*smoker+region,data=ins)
+summary(model3)
+```
+
+- 성능 개선된 medle3 시각화
+```
+par(mfrow=c(2,2))
+par(mar=c(2,2,2,2))
+plot(model3,col='pink')
+```
+
+첫번째 모델에 비하면 결정계수가 0.75에서 0.87로 개선이 되었습니다. 
+
+## **7. 결론 **
+모델의 의료비 변화량은 87%를 설명하고 있습니다. 결정계수와 조정된 
+계수의 차이가 크지 않아 지금 추가한 파생변수가 유의한 파생변수임을 
+나타내고 있습니다. 흡연만 할때보다 비만인 사람이 흡연할때 연간의료비가
+13404 달러보다 큰 19810 달러가 지출됩니다.따라서 흡연이 비만과 관련된 질병을 악화시킨다고 말할 수 있습니다.
+
